@@ -2,9 +2,11 @@
 #include <opencv2/core.hpp>
 #include <opencv2/highgui.hpp>
 #include <opencv2/imgproc.hpp>
+#include <c2ga/Mvec.hpp>
 
 using namespace std;
 using namespace cv;
+using namespace c2ga;
 
 const string W_NAME = "Main";
 constexpr unsigned int W_WIDTH = 800;
@@ -16,7 +18,23 @@ struct Ball2D {
 	int radius;
 };
 
+template<typename T>
+Mvec<T> point(const T &x, const T &y) {
+	Mvec<T> mv;
+	mv[E1] = x;
+    mv[E2] = y;
+    mv[Ei] = 0.5 * (x*x + y*y);
+    mv[E0] = 1.0;
+    return mv;
+}
+
+template<typename T>
+Mvec<T> point(const Mvec<T> &vec){
+    return point(vec[E1], vec[E2]);
+}
+
 vector<Ball2D> balls(0);
+vector<Mvec<double>> objects(0);
 Mat wMat(W_HEIGHT, W_WIDTH, CV_8UC3);
 bool mousePressed = false;
 int mouseX = 0, mouseY = 0, radius = 20;
@@ -33,20 +51,21 @@ void mouseCallback(int event, int x, int y, int flags, void *userdata = 0) {
 void draw() {
 	wMat = Mat::zeros(W_HEIGHT, W_WIDTH, CV_8UC3);
 	for(Ball2D ball : balls) {
-		circle(wMat, Point(ball.x, ball.y), ball.radius, Scalar(0, 0, 255));
+		circle(wMat, Point(ball.x, ball.y), ball.radius, Scalar(0, 0, 255), FILLED);
 	}
 	imshow(W_NAME, wMat);
 }
 
 int main(int argc, char *argv[]) {
+	int key = -1;
+	bool done = false;
+	objects.push_back(point(0., 0.) ^ point(0., (double)W_HEIGHT));
+	objects.push_back(point(0., (double)W_WIDTH) ^ point((double)W_WIDTH, (double)W_HEIGHT));
+
 	namedWindow(W_NAME);
 	resizeWindow(W_NAME, W_WIDTH, W_HEIGHT);
 	setMouseCallback(W_NAME, mouseCallback);
 
-	int64 t1, t2;
-	int key = -1;
-	bool done = false;
-	t1 = getTickCount();
 	while(!done) {
 		if(getWindowProperty(W_NAME, WND_PROP_AUTOSIZE) == -1) {
 			done = true;
@@ -74,9 +93,10 @@ int main(int argc, char *argv[]) {
 			}
 		}
 
-		t2 = getTickCount();
 		for(Ball2D & ball : balls) {
-			ball.y = (ball.y + (t2 - t1)/100000) % W_HEIGHT;
+			//if(ball.y + radius < W_HEIGHT) {
+				ball.y = (ball.y + 1) % W_HEIGHT;
+			//}
 		}
 
 		draw();
